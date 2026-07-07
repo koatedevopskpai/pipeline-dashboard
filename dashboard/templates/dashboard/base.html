@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+{% comment %}
+Base template — every page extends this.
+
+Architecture decision: Single base template over multiple inheritance layers.
+
+Why: This dashboard has one visual identity. Three template layers
+(base → section → page) would add indirection without benefit. A single
+base template with block overrides is simpler and every page's template
+is self-contained.
+{% endcomment %}
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pipeline Dashboard{% endblock %}</title>
+
+    {% comment %}
+    Architecture decision: CDN-loaded libraries over bundled static files.
+
+    Why: Chart.js and HTMX are standard, stable, small libraries served
+    from CDN with global caching. Bundling them adds complexity (webpack,
+    npm, build step) for no performance gain at this scale. If offline
+    operation were required, we would vendor them.
+    {% endcomment %}
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.14.8" defer></script>
+
+    {% comment %}
+    Architecture decision: Tailwind CSS via CDN Play CDN over npm build.
+
+    Why: For a portfolio project, Tailwind via CDN gives us the full design
+    system without a build step. The performance cost (CDN delivers only
+    the classes used) is negligible for a dashboard that loads once per session.
+    {% endcomment %}
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'dashboard/css/styles.css' %}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    {% comment %}
+    Navigation bar — consistent across all pages.
+
+    Architecture decision: Server-rendered navigation over client-side routing.
+
+    Why: This is a Django application, not a SPA. Navigation links trigger
+    full page loads or HTMX partial swaps. No client-side routing, no
+    hydration, no JavaScript state management. Simple, fast, maintainable.
+    {% endcomment %}
+    <nav class="bg-white border-b border-gray-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="{% url 'dashboard:index' %}" class="flex items-center space-x-2">
+                        <span class="text-xl font-bold text-blue-600">Pipeline</span>
+                        <span class="text-xl font-light text-gray-500">Dashboard</span>
+                    </a>
+                    <div class="hidden md:flex space-x-4">
+                        <a href="{% url 'dashboard:index' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium
+                                  {% if request.resolver_match.view_name == 'dashboard:index' %}
+                                  text-blue-600 bg-blue-50
+                                  {% else %}
+                                  text-gray-600 hover:text-gray-900 hover:bg-gray-100
+                                  {% endif %}">
+                            Overview
+                        </a>
+                        <a href="{% url 'dashboard:daily_summary' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                            Daily Summary
+                        </a>
+                        <a href="{% url 'dashboard:category_breakdown' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                            Categories
+                        </a>
+                        <a href="{% url 'dashboard:pipeline_runs' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                            Pipeline Runs
+                        </a>
+                        <a href="{% url 'chat:index' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                            AI Chat
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    {% if user.is_authenticated %}
+                        <span class="text-sm text-gray-500">{{ user.username }}</span>
+                        <a href="{% url 'admin:logout' %}"
+                           class="text-sm text-gray-500 hover:text-gray-700">Logout</a>
+                    {% else %}
+                        <a href="{% url 'admin:login' %}"
+                           class="text-sm text-blue-600 hover:text-blue-800">Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    {% comment %}
+    Main content area — HTMX target for partial page updates.
+
+    The hx-history-elt attribute tells HTMX which element to snapshot for
+    browser history. Without this, HTMX navigation breaks the back button.
+    {% endcomment %}
+    <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% comment %}
+    Loading indicator — shown during HTMX requests.
+
+    HTMX adds hx-request class to the body during requests. We use this
+    to show a subtle loading bar at the top of the page.
+    {% endcomment %}
+    <div id="loading-bar"
+         class="fixed top-0 left-0 w-full h-1 bg-blue-500 transition-opacity duration-200 opacity-0"
+         hx-trigger="htmx:beforeRequest from:body"
+         hx-target="this"
+         :class="{ 'opacity-100': $el.classList.contains('htmx-request') }">
+    </div>
+
+    <script>
+        // Auto-show/hide loading bar during HTMX requests
+        document.body.addEventListener('htmx:beforeRequest', function() {
+            document.getElementById('loading-bar').classList.remove('opacity-0');
+            document.getElementById('loading-bar').classList.add('opacity-100');
+        });
+        document.body.addEventListener('htmx:afterRequest', function() {
+            document.getElementById('loading-bar').classList.remove('opacity-100');
+            document.getElementById('loading-bar').classList.add('opacity-0');
+        });
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

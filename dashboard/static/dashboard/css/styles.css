@@ -1,0 +1,52 @@
+/*
+ * Pipeline Dashboard — custom styles.
+ *
+ * Architecture decision: Minimal custom CSS over utility-first approach.
+ *
+ * Why: Tailwind CSS handles 95% of styling needs via utility classes in the
+ * templates. This file exists only for animations, transitions, and subtle
+ * visual polish that Tailwind's utility classes cannot express concisely.
+ * Keeping it small (under 100 lines) means reviewers can skim it in seconds.
+ */
+
+/* Loading bar animation — subtle pulse during HTMX requests */
+.htmx-request #loading-bar {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* Smooth transitions for HTMX content swaps */
+#dashboard-content {
+    transition: opacity 0.15s ease-in-out;
+}
+
+#dashboard-content.htmx-swapping {
+    opacity: 0.3;
+}
+
+/* Tooltip-style helper text */
+.helper-text {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    line-height: 1.25;
+}
+
+/* Ensure Chart.js canvases don't stretch beyond their containers */
+canvas {
+    max-width: 100%;
+}
+
+/* Scrollable table containers on mobile */
+.overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Subtle hover effect for clickable rows */
+tr.htmx-request {
+    opacity: 0.6;
+    transition: opacity 0.15s ease-in-out;
+}

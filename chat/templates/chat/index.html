@@ -1,0 +1,115 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}AI Chat — Pipeline Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-2">AI Pipeline Assistant</h2>
+        <p class="text-sm text-gray-500 mb-6">
+            Ask questions about your pipeline health, data quality, or transaction trends.
+            Powered by Claude.
+        </p>
+
+        {% if claude_configured %}
+            {% comment %}
+            Chat form — HTMX-powered, no page reload on submit.
+
+            Architecture decision: Form POST over WebSocket or SSE.
+
+            Why: For a simple question-answer widget, a form POST is the
+            simplest reliable pattern. WebSocket adds persistent connection
+            overhead. SSE adds complexity. Both are justified when the user
+            needs real-time streaming of the answer as it is generated.
+            For now, simple POST with a loading indicator is adequate.
+            {% endcomment %}
+            <form hx-post="{% url 'chat:index' %}"
+                  hx-target="#answer-container"
+                  hx-indicator="#loading-indicator"
+                  class="mb-6">
+                {% csrf_token %}
+                <div class="flex space-x-3">
+                    <input type="text"
+                           name="question"
+                           placeholder="Ask something like: What's the data quality trend this week?"
+                           required
+                           class="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-sm
+                                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <button type="submit"
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg text-sm font-medium
+                                   hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2
+                                   focus:ring-blue-500 focus:ring-offset-2">
+                        Ask
+                    </button>
+                </div>
+                <div id="loading-indicator" class="htmx-indicator mt-2">
+                    <div class="flex items-center space-x-2 text-sm text-gray-400">
+                        <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Claude is thinking...</span>
+                    </div>
+                </div>
+            </form>
+
+            {% comment %}
+            Answer container — HTMX swap target for answers.
+            {% endcomment %}
+            <div id="answer-container">
+                {% include "chat/partials/answer.html" %}
+            </div>
+
+        {% else %}
+            {% comment %}
+            Empty state — shown when Claude API key is not configured.
+            {% endcomment %}
+            <div class="text-center py-12">
+                <div class="text-4xl mb-4">🤖</div>
+                <h3 class="text-lg font-medium text-gray-700 mb-2">AI Chat Not Configured</h3>
+                <p class="text-sm text-gray-500">
+                    Set the <code class="bg-gray-100 px-1 rounded">CLAUDE_API_KEY</code>
+                    environment variable to enable the AI pipeline assistant.
+                </p>
+                <p class="text-xs text-gray-400 mt-4">
+                    The dashboard works without it — all charts and data are still available.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    {% comment %}
+    Suggested questions — helps users understand what the AI can answer.
+    {% endcomment %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Try asking:</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <button class="text-left text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50
+                           rounded px-3 py-2 transition-colors"
+                    hx-post="{% url 'chat:index' %}"
+                    hx-target="#answer-container"
+                    hx-vals='{"question": "What is the current pipeline health status?"}'>
+                What is the current pipeline health status?
+            </button>
+            <button class="text-left text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50
+                           rounded px-3 py-2 transition-colors"
+                    hx-post="{% url 'chat:index' %}"
+                    hx-target="#answer-container"
+                    hx-vals='{"question": "How many transactions were processed in the last 7 days?"}'>
+                How many transactions in the last 7 days?
+            </button>
+            <button class="text-left text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50
+                           rounded px-3 py-2 transition-colors"
+                    hx-post="{% url 'chat:index' %}"
+                    hx-target="#answer-container"
+                    hx-vals='{"question": "What data quality issues should I investigate?"}'>
+                What data quality issues should I investigate?
+            </button>
+            <button class="text-left text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50
+                           rounded px-3 py-2 transition-colors"
+                    hx-post="{% url 'chat:index' %}"
+                    hx-target="#answer-container"
+                    hx-vals='{"question": "Which categories have the highest transaction volume?"}'>
+                Which categories have the highest volume?
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+name: CI
+
+# Architecture decision: Run CI on every push, not just PRs.
+# Why: This is a portfolio project with a single contributor. PR-based CI
+# adds overhead (creating branches, opening PRs) for every change. Running
+# on push to main catches issues immediately without blocking workflow.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DJANGO_SECRET_KEY: ci-test-key-do-not-use-in-production
+  DJANGO_DEBUG: "False"
+  DJANGO_ALLOWED_HOSTS: localhost
+  BIGQUERY_PROJECT_ID: gcp-data-pipeline-5XXXXX
+  BIGQUERY_DATASET_STAGING: pipeline_staging
+  BIGQUERY_DATASET_ANALYTICS: pipeline_analytics
+  GOOGLE_APPLICATION_CREDENTIALS: /dev/null
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Run Django checks
+        # Architecture decision: `check --deploy` over unit tests for CI.
+        # Why: This project reads from BigQuery, not a local database.
+        # Unit tests that mock BigQuery would test the mock, not the code.
+        # Django's `check --deploy` validates settings, URL patterns, middleware
+        # ordering, and deployment configuration — catching real issues without
+        # requiring a BigQuery connection.
+        run: python manage.py check --deploy --fail-level WARNING
+
+      - name: Check missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Build Docker image
+        run: docker build --tag pipeline-dashboard --file Dockerfile .
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir ruff
+
+      - name: Run Ruff linter
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .

@@ -1,0 +1,315 @@
+{% comment %}
+Dashboard content partial — swapped by HTMX when filters change.
+
+This template is rendered both for full page loads (extending index.html)
+and for HTMX partial swaps. The `request.htmx` flag in the view determines
+which template to use.
+
+Architecture decision: Separate partial template over inclusion with "if" blocks.
+
+Why: A single template with {% if request.htmx %} branches works but makes
+the template harder to read. A separate partial template means each file has
+one clear purpose. The view decides which template to render via the
+request.htmx flag — clean separation of concerns.
+{% endcomment %}
+
+{% comment %}
+Daily summary chart
+{% endcomment %}
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">Daily Transaction Volume</h3>
+    {% if snapshot.daily_summaries %}
+        <canvas id="dailyChart" height="80"></canvas>
+    {% else %}
+        <p class="text-gray-400 text-center py-8">No data available for the selected period.</p>
+    {% endif %}
+</div>
+
+{% comment %}
+Category and region charts — side by side on desktop
+{% endcomment %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Category Breakdown</h3>
+        {% if snapshot.category_summaries %}
+            <canvas id="categoryChart" height="120"></canvas>
+        {% else %}
+            <p class="text-gray-400 text-center py-8">No category data available.</p>
+        {% endif %}
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Regional Distribution</h3>
+        {% if snapshot.region_summaries %}
+            <canvas id="regionChart" height="120"></canvas>
+        {% else %}
+            <p class="text-gray-400 text-center py-8">No regional data available.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% comment %}
+Data quality metrics
+{% endcomment %}
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">Data Quality Overview</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {% for metric in snapshot.quality_metrics %}
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <p class="text-2xl font-bold text-gray-700">{{ metric.value }}</p>
+                <p class="text-sm text-gray-500">{{ metric.metric|title }}</p>
+            </div>
+        {% empty %}
+            <p class="text-gray-400 col-span-full text-center py-4">No quality metrics available.</p>
+        {% endfor %}
+    </div>
+</div>
+
+{% comment %}
+Recent pipeline runs
+{% endcomment %}
+<div class="bg-white rounded-lg shadow p-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Pipeline Runs</h3>
+    {% if snapshot.recent_runs %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Run ID</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Started</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rows Read</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rows Written</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Errors</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for run in snapshot.recent_runs|slice:":10" %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-4 py-3 text-sm font-mono text-gray-600">{{ run.run_id|truncatechars:20 }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ run.started_at|date:"d M H:i" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                {% if run.duration_seconds %}
+                                    {{ run.duration_seconds }}s
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ run.rows_read|default:"—" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ run.rows_written|default:"—" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ run.error_count|default:"0" }}</td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                    {% if run.status == 'success' %}bg-green-100 text-green-800
+                                    {% elif run.status == 'failed' %}bg-red-100 text-red-800
+                                    {% elif run.status == 'running' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ run.status }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-gray-400 text-center py-8">No pipeline runs recorded yet. Upload data to the GCS bucket to trigger the pipeline.</p>
+    {% endif %}
+</div>
+
+{% comment %}
+Chart.js initialisation — runs when this partial is loaded.
+
+Architecture decision: Inline script block over external JS file.
+
+Why: Each chart depends on data that is rendered into the template context.
+An external JS file would need to read data from data attributes on DOM
+elements, adding complexity. Inline scripts are self-contained — the data
+and the chart rendering code live together.
+
+HTMX note: When this partial is swapped in, the inline script runs automatically
+because HTMX executes script tags found in the new content (with
+hx-headers or hx-trigger processing disabled by default for security).
+{% endcomment %}
+{% if snapshot.daily_summaries or snapshot.category_summaries or snapshot.region_summaries %}
+<script>
+(function() {
+    // Chart.js defaults — consistent colours across all charts
+    const COLORS = {
+        blue: 'rgba(59, 130, 246, 0.8)',
+        blueLight: 'rgba(59, 130, 246, 0.1)',
+        purple: 'rgba(147, 51, 234, 0.8)',
+        purpleLight: 'rgba(147, 51, 234, 0.1)',
+        teal: 'rgba(20, 184, 166, 0.8)',
+        tealLight: 'rgba(20, 184, 166, 0.1)',
+        green: 'rgba(34, 197, 94, 0.8)',
+        red: 'rgba(239, 68, 68, 0.8)',
+        yellow: 'rgba(234, 179, 8, 0.8)',
+        orange: 'rgba(249, 115, 22, 0.8)',
+    };
+
+    {% if snapshot.daily_summaries %}
+    (function() {
+        var canvas = document.getElementById('dailyChart');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+
+        var labels = {{ snapshot.daily_summaries|slice:":30"|map(attribute='date')|map("date", "Y-m-d")|list|safe }};
+        var amounts = {{ snapshot.daily_summaries|slice:":30"|map(attribute='total_amount')|list }};
+        var counts = {{ snapshot.daily_summaries|slice:":30"|map(attribute='transaction_count')|list }};
+
+        // Destroy existing chart if it exists (HTMX re-swaps may recreate)
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total Amount (£)',
+                        data: amounts,
+                        backgroundColor: COLORS.blue,
+                        borderColor: COLORS.blue,
+                        borderWidth: 1,
+                        order: 1,
+                    },
+                    {
+                        label: 'Transaction Count',
+                        data: counts,
+                        backgroundColor: COLORS.tealLight,
+                        borderColor: COLORS.teal,
+                        borderWidth: 2,
+                        type: 'line',
+                        fill: true,
+                        order: 0,
+                        yAxisID: 'y1',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Amount (£)' },
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        title: { display: true, text: 'Count' },
+                        grid: { display: false },
+                    },
+                    x: {
+                        grid: { display: false },
+                    }
+                }
+            }
+        });
+    })();
+    {% endif %}
+
+    {% if snapshot.category_summaries %}
+    (function() {
+        var canvas = document.getElementById('categoryChart');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+
+        // Aggregate by category
+        var catMap = {};
+        {% for s in snapshot.category_summaries %}
+            catMap['{{ s.category }}'] = (catMap['{{ s.category }}'] || 0) + {{ s.total_amount }};
+        {% endfor %}
+        var catLabels = Object.keys(catMap);
+        var catAmounts = Object.values(catMap);
+
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+
+        var palette = [COLORS.blue, COLORS.purple, COLORS.teal, COLORS.green, COLORS.orange, COLORS.red, COLORS.yellow];
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catAmounts,
+                    backgroundColor: catLabels.map(function(_, i) { return palette[i % palette.length]; }),
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { padding: 12 }
+                    }
+                }
+            }
+        });
+    })();
+    {% endif %}
+
+    {% if snapshot.region_summaries %}
+    (function() {
+        var canvas = document.getElementById('regionChart');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+
+        var regMap = {};
+        {% for s in snapshot.region_summaries %}
+            regMap['{{ s.region }}'] = (regMap['{{ s.region }}'] || 0) + {{ s.total_amount }};
+        {% endfor %}
+        var regLabels = Object.keys(regMap);
+        var regAmounts = Object.values(regMap);
+
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+
+        new Chart(ctx, {
+            type: 'polarArea',
+            data: {
+                labels: regLabels,
+                datasets: [{
+                    data: regAmounts,
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.6)',
+                        'rgba(147, 51, 234, 0.6)',
+                        'rgba(20, 184, 166, 0.6)',
+                        'rgba(34, 197, 94, 0.6)',
+                        'rgba(249, 115, 22, 0.6)',
+                    ],
+                    borderColor: '#fff',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { padding: 10 }
+                    }
+                }
+            }
+        });
+    })();
+    {% endif %}
+})();
+</script>
+{% endif %}

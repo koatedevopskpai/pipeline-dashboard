@@ -1,0 +1,89 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Data Quality — Pipeline Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {% comment %}
+    Data quality metrics cards
+    {% endcomment %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-6">Data Quality Metrics</h2>
+        {% if metrics %}
+            <div class="grid grid-cols-2 gap-4">
+                {% for m in metrics %}
+                    <div class="text-center p-6 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-3xl font-bold
+                            {% if m.metric == 'ingestion_errors' %}
+                                text-red-500
+                            {% elif m.metric == 'duplicate_rows' %}
+                                text-yellow-500
+                            {% else %}
+                                text-blue-600
+                            {% endif %}">
+                            {{ m.value }}
+                        </p>
+                        <p class="text-sm text-gray-500 mt-1">{{ m.metric|title }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-gray-400 text-center py-12">No quality metrics available.</p>
+        {% endif %}
+    </div>
+
+    {% comment %}
+    Pipeline integrity checklist
+    {% endcomment %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-6">Pipeline Integrity</h2>
+        <ul class="space-y-4">
+            <li class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+                    <span class="text-white text-xs">✓</span>
+                </span>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Pydantic Schema Validation</p>
+                    <p class="text-xs text-gray-500">All incoming data validated against explicit Pydantic models</p>
+                </div>
+            </li>
+            <li class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+                    <span class="text-white text-xs">✓</span>
+                </span>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Error Accumulation</p>
+                    <p class="text-xs text-gray-500">Invalid rows logged to ingestion_errors — no silent data loss</p>
+                </div>
+            </li>
+            <li class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+                    <span class="text-white text-xs">✓</span>
+                </span>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Explicit BigQuery Schemas</p>
+                    <p class="text-xs text-gray-500">All tables use explicit schemas — no auto-detect type surprises</p>
+                </div>
+            </li>
+            <li class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+                    <span class="text-white text-xs">✓</span>
+                </span>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Deduplication via ROW_NUMBER</p>
+                    <p class="text-xs text-gray-500">Duplicate rows tracked with explicit count — no silent dedup</p>
+                </div>
+            </li>
+            <li class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center mt-0.5">
+                    <span class="text-white text-xs">✓</span>
+                </span>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Pipeline Run Logging</p>
+                    <p class="text-xs text-gray-500">Every transform run logged with rows read/written/errors status</p>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+# Architecture decision: Exclude local development artefacts from Docker build context.
+# Why: The `.dockerignore` file prevents local files from being sent to the Docker
+# daemon, which speeds up builds and prevents secrets from leaking into images.
+
+# Version control
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+*.whl
+
+# Local database (SQLite — never ship to production)
+db.sqlite3
+
+# Environment variables (contains API keys)
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore

@@ -1,0 +1,70 @@
+{% comment %}
+Daily summary partial — shows transaction data in a table.
+
+Architecture decision: Server-rendered table over client-side data table.
+
+Why: For a simple daily summary, server-rendered HTML is faster to load,
+instantly searchable (browser find), and accessible without JavaScript.
+A client-side data table library (DataTables, TanStack Table) would add
+a dependency for functionality the browser already provides.
+{% endcomment %}
+
+{% extends "dashboard/base.html" %}
+
+{% block title %}Daily Summary — Pipeline Dashboard{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow p-6">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold text-gray-800">Daily Transaction Summary</h2>
+        <div class="flex items-center space-x-2">
+            <label for="days" class="text-sm text-gray-500">Period:</label>
+            <select name="days" id="days"
+                    hx-get="{% url 'dashboard:daily_summary' %}"
+                    hx-target="#main-content"
+                    hx-trigger="change"
+                    class="border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                <option value="7" {% if days == 7 %}selected{% endif %}>7 days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>90 days</option>
+                <option value="365" {% if days == 365 %}selected{% endif %}>All time</option>
+            </select>
+        </div>
+    </div>
+
+    {% if summaries %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transactions</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unique</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total (£)</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg (£)</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Currencies</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Regions</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Categories</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for s in summaries %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ s.date|date:"D, d M Y" }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-right">{{ s.transaction_count }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-right">{{ s.unique_transactions }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-right font-mono">£{{ s.total_amount|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-right font-mono">£{{ s.avg_amount|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-center">{{ s.currency_count }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-center">{{ s.region_count }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600 text-center">{{ s.category_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-gray-400 text-center py-12">No data available for the selected period.</p>
+    {% endif %}
+</div>
+{% endblock %}
