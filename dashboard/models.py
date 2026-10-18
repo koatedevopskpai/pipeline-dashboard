@@ -11,6 +11,9 @@ only stores user preferences (bookmarked queries, filter presets) locally.
 
 The models here are for user-facing features, not pipeline state.
 """
+
+from typing import ClassVar
+
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -24,8 +27,13 @@ class BookmarkedQuery(models.Model):
     migration harder. A separate model with explicit fields is more
     maintainable and allows future features like sharing bookmarks.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookmarked_queries")
-    name = models.CharField(max_length=100, help_text="Human-readable label for this bookmark")
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="bookmarked_queries"
+    )
+    name = models.CharField(
+        max_length=100, help_text="Human-readable label for this bookmark"
+    )
     query_params = models.JSONField(
         default=dict,
         help_text="Filter parameters stored as JSON (date_from, date_to, category, region)",
@@ -33,8 +41,8 @@ class BookmarkedQuery(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
-        unique_together = ["user", "name"]
+        ordering: ClassVar[list[str]] = ["-created_at"]
+        unique_together: ClassVar[list[str]] = ["user", "name"]
 
     def __str__(self) -> str:
         return f"{self.user.username}: {self.name}"
@@ -49,8 +57,13 @@ class DashboardPreference(models.Model):
     session expiry. A persistent model means preferences survive across
     sessions, which is the expected UX for a dashboard.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="dashboard_prefs")
-    default_date_range_days = models.IntegerField(default=30, help_text="Default date range in days")
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="dashboard_prefs"
+    )
+    default_date_range_days = models.IntegerField(
+        default=30, help_text="Default date range in days"
+    )
     default_chart_type = models.CharField(
         max_length=20,
         default="bar",

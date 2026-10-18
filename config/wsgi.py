@@ -1,6 +1,7 @@
 """
 WSGI config for pipeline-dashboard.
 """
+
 import os
 
 from django.core.wsgi import get_wsgi_application

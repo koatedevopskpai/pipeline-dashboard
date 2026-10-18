@@ -13,6 +13,7 @@ Architecture decision: Environment variables for secrets, not settings.py.
 Why: No API keys, database passwords, or secret keys should be hardcoded.
 .env file for local dev, environment variables in production (Docker/Railway).
 """
+
 from __future__ import annotations
 
 import os
@@ -55,7 +56,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Third-party
-    "django_htmx",   # HTMX integration: adds request.htmx boolean
+    "django_htmx",  # HTMX integration: adds request.htmx boolean
     # Local
     "dashboard",
     "chat",
@@ -69,7 +70,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django_htmx.middleware.HtmxMiddleware",   # Adds request.htmx for partial swaps
+    "django_htmx.middleware.HtmxMiddleware",  # Adds request.htmx for partial swaps
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -158,8 +159,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 
 BIGQUERY_PROJECT_ID = os.environ.get("BIGQUERY_PROJECT_ID", "gcp-data-pipeline-5XXXXX")
-BIGQUERY_DATASET_STAGING = os.environ.get("BIGQUERY_DATASET_STAGING", "pipeline_staging")
-BIGQUERY_DATASET_ANALYTICS = os.environ.get("BIGQUERY_DATASET_ANALYTICS", "pipeline_analytics")
+BIGQUERY_DATASET_STAGING = os.environ.get(
+    "BIGQUERY_DATASET_STAGING", "pipeline_staging"
+)
+BIGQUERY_DATASET_ANALYTICS = os.environ.get(
+    "BIGQUERY_DATASET_ANALYTICS", "pipeline_analytics"
+)
 
 # ---------------------------------------------------------------------------
 # Claude API configuration
@@ -173,3 +178,39 @@ BIGQUERY_DATASET_ANALYTICS = os.environ.get("BIGQUERY_DATASET_ANALYTICS", "pipel
 
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+
+# ---------------------------------------------------------------------------
+# Security (active whenever DEBUG is off)
+# ---------------------------------------------------------------------------
+# Architecture decision: secure-by-default when DEBUG is off, rather than a
+# separate production settings module. Why: `manage.py check --deploy` is a CI
+# gate, so the settings that gate validates are the settings that actually ship.
+# Each flag stays env-overridable so a proxy or CDN can adjust it.
+# ---------------------------------------------------------------------------
+
+if not DEBUG:
+    # Terminate plain HTTP at the app, trusting the load balancer's forwarded
+    # protocol header (the app runs behind a TLS-terminating proxy).
+    SECURE_SSL_REDIRECT = os.environ.get(
+        "DJANGO_SECURE_SSL_REDIRECT", "True"
+    ).lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # Session and CSRF cookies are HTTPS-only and unreadable from JavaScript.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+
+    # HSTS: one year, subdomains included, eligible for preload.
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Defence-in-depth response headers.
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    X_FRAME_OPTIONS = "DENY"

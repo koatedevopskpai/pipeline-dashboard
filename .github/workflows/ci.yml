@@ -12,7 +12,9 @@ on:
     branches: [main]
 
 env:
-  DJANGO_SECRET_KEY: ci-test-key-do-not-use-in-production
+  # >=50 chars and not on Django's insecure-key list, so `check --deploy`
+  # does not raise W009. CI-only value; never used outside CI.
+  DJANGO_SECRET_KEY: ci-only-secret-key-not-used-in-production-0123456789abcdef
   DJANGO_DEBUG: "False"
   DJANGO_ALLOWED_HOSTS: localhost
   BIGQUERY_PROJECT_ID: gcp-data-pipeline-5XXXXX
@@ -68,7 +70,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --no-cache-dir -r requirements.txt
-          pip install --no-cache-dir ruff
+          # Pinned: an unpinned Ruff silently gains rules with each release and
+          # breaks CI on files nobody touched.
+          pip install --no-cache-dir "ruff==0.17.1"
 
       - name: Run Ruff linter
         run: ruff check .

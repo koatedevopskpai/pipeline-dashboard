@@ -23,6 +23,7 @@ integration. If no API key is configured, the chat input is hidden and a
 helpful message points the user to configure it. This avoids a broken
 UI element that frustrates users.
 """
+
 from __future__ import annotations
 
 import logging
@@ -63,7 +64,9 @@ def _build_system_prompt() -> str:
     )
 
 
-def get_answer(question: str, api_key: str, model: str = "claude-sonnet-4-20250514") -> dict[str, Any]:
+def get_answer(
+    question: str, api_key: str, model: str = "claude-sonnet-4-20250514"
+) -> dict[str, Any]:
     """
     Send a question to Claude and return the answer.
 
@@ -79,7 +82,7 @@ def get_answer(question: str, api_key: str, model: str = "claude-sonnet-4-202505
         logger.warning("Claude API key not configured — cannot answer questions")
         return {
             "error": "Claude API key not configured. "
-                     "Set the CLAUDE_API_KEY environment variable to enable AI chat.",
+            "Set the CLAUDE_API_KEY environment variable to enable AI chat.",
         }
 
     try:
@@ -106,4 +109,4 @@ def get_answer(question: str, api_key: str, model: str = "claude-sonnet-4-202505
 
     except Exception as e:
         logger.exception("Claude API call failed")
-        return {"error": f"Failed to get answer from Claude: {str(e)}"}
+        return {"error": f"Failed to get answer from Claude: {e!s}"}
