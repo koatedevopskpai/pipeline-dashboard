@@ -22,11 +22,12 @@ Why: ADC works seamlessly across local dev (gcloud auth), CI (workload identity)
 and production (GCP service account attached to the runtime). No credential
 files to manage, no rotation to schedule.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Any
 
 from django.conf import settings
@@ -48,6 +49,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class DailySummary:
     """One row from v_daily_summary — transaction counts and amounts per day."""
+
     date: date
     transaction_count: int
     unique_transactions: int
@@ -61,6 +63,7 @@ class DailySummary:
 @dataclass(frozen=True)
 class CategorySummary:
     """One row from v_category_summary — spending breakdown by category."""
+
     category: str
     date: date
     transaction_count: int
@@ -71,6 +74,7 @@ class CategorySummary:
 @dataclass(frozen=True)
 class RegionSummary:
     """One row from v_region_summary — spending breakdown by region and quarter."""
+
     region: str
     quarter: str
     transaction_count: int
@@ -81,6 +85,7 @@ class RegionSummary:
 @dataclass(frozen=True)
 class PipelineRun:
     """One row from v_pipeline_runs — observability for pipeline executions."""
+
     run_id: str
     started_at: datetime
     completed_at: datetime | None
@@ -95,6 +100,7 @@ class PipelineRun:
 @dataclass(frozen=True)
 class DataQualityMetric:
     """One row from v_data_quality — aggregate pipeline health indicators."""
+
     metric: str
     value: int
 
@@ -102,6 +108,7 @@ class DataQualityMetric:
 @dataclass(frozen=True)
 class DashboardSnapshot:
     """Complete snapshot of all dashboard data for one request."""
+
     daily_summaries: list[DailySummary] = field(default_factory=list)
     category_summaries: list[CategorySummary] = field(default_factory=list)
     region_summaries: list[RegionSummary] = field(default_factory=list)
@@ -134,7 +141,9 @@ def _get_client() -> bigquery.Client:
     global _client
     if _client is None:
         _client = bigquery.Client(project=settings.BIGQUERY_PROJECT_ID)
-        logger.info("BigQuery client initialised for project %s", settings.BIGQUERY_PROJECT_ID)
+        logger.info(
+            "BigQuery client initialised for project %s", settings.BIGQUERY_PROJECT_ID
+        )
     return _client
 
 
@@ -142,7 +151,10 @@ def _get_client() -> bigquery.Client:
 # Query helpers
 # ---------------------------------------------------------------------------
 
-def _rows_to_dataclass(rows, cls: type, field_map: dict[str, str] | None = None) -> list:
+
+def _rows_to_dataclass(
+    rows, cls: type, field_map: dict[str, str] | None = None
+) -> list:
     """
     Convert BigQuery RowIterator rows to a list of dataclass instances.
 
@@ -156,7 +168,9 @@ def _rows_to_dataclass(rows, cls: type, field_map: dict[str, str] | None = None)
     for row in rows:
         kwargs = {}
         for field_name in cls.__dataclass_fields__:
-            bq_field = field_map.get(field_name, field_name) if field_map else field_name
+            bq_field = (
+                field_map.get(field_name, field_name) if field_map else field_name
+            )
             kwargs[field_name] = row.get(bq_field)
         results.append(cls(**kwargs))
     return results
@@ -172,6 +186,7 @@ def _execute_query(sql: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def fetch_daily_summaries(days: int = 30) -> list[DailySummary]:
     """

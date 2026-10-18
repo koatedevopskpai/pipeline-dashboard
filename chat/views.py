@@ -9,6 +9,7 @@ to this view and swaps in the answer partial. The same view handles both GET
 (initial page load) and POST (question submission), keeping the logic in one
 place rather than splitting across a form view and a partial view.
 """
+
 from __future__ import annotations
 
 from django.conf import settings
@@ -29,9 +30,13 @@ def index(request: HttpRequest) -> HttpResponse:
         question = request.POST.get("question", "").strip()
 
         if not question:
-            return render(request, "chat/partials/answer.html", {
-                "error": "Please enter a question.",
-            })
+            return render(
+                request,
+                "chat/partials/answer.html",
+                {
+                    "error": "Please enter a question.",
+                },
+            )
 
         result = claude_client.get_answer(
             question=question,
@@ -39,11 +44,19 @@ def index(request: HttpRequest) -> HttpResponse:
             model=settings.CLAUDE_MODEL,
         )
 
-        return render(request, "chat/partials/answer.html", {
-            "question": question,
-            "result": result,
-        })
+        return render(
+            request,
+            "chat/partials/answer.html",
+            {
+                "question": question,
+                "result": result,
+            },
+        )
 
-    return render(request, "chat/index.html", {
-        "claude_configured": bool(settings.CLAUDE_API_KEY),
-    })
+    return render(
+        request,
+        "chat/index.html",
+        {
+            "claude_configured": bool(settings.CLAUDE_API_KEY),
+        },
+    )

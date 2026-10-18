@@ -14,26 +14,36 @@ Why: Filtering by date range or category should update the charts without a full
 page reload. HTMX lets us return HTML fragments from the same view based on the
 HX-Request header. No JS framework, no API endpoints, no JSON serialisation.
 """
+
 from __future__ import annotations
 
-from datetime import date, timedelta
+import logging
 
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from .services import bigquery_client as bq
 
+logger = logging.getLogger(__name__)
+
 
 def _get_default_date_range(request: HttpRequest) -> int:
-    """Get the default date range from user preferences, falling back to 30 days."""
+    """Get the default date range from user preferences, falling back to 30 days.
+
+    Returns an int in every path. The previous implementation returned the raw
+    query-string value (a str) before the coercion below could run, so callers
+    could receive a string where the signature promises an int.
+    """
     if request.user.is_authenticated:
         try:
             return request.user.dashboard_prefs.default_date_range_days
-        except Exception:
-            pass
-    return request.GET.get("days", 30)
-    # Convert to int, default to 30 if conversion fails
+        except ObjectDoesNotExist:
+            logger.debug(
+                "No dashboard preferences for user %s; using the request default.",
+                request.user,
+            )
     try:
         return int(request.GET.get("days", 30))
     except (ValueError, TypeError):
@@ -59,7 +69,11 @@ def index(request: HttpRequest) -> HttpResponse:
         "project_id": settings.BIGQUERY_PROJECT_ID,
     }
 
-    template = "dashboard/partials/dashboard_content.html" if request.htmx else "dashboard/index.html"
+    template = (
+        "dashboard/partials/dashboard_content.html"
+        if request.htmx
+        else "dashboard/index.html"
+    )
     return render(request, template, context)
 
 
@@ -72,10 +86,14 @@ def daily_summary_view(request: HttpRequest) -> HttpResponse:
     days = _get_default_date_range(request)
     summaries = bq.fetch_daily_summaries(days=days)
 
-    return render(request, "dashboard/partials/daily_summary.html", {
-        "summaries": summaries,
-        "days": days,
-    })
+    return render(
+        request,
+        "dashboard/partials/daily_summary.html",
+        {
+            "summaries": summaries,
+            "days": days,
+        },
+    )
 
 
 def category_breakdown_view(request: HttpRequest) -> HttpResponse:
@@ -90,10 +108,14 @@ def category_breakdown_view(request: HttpRequest) -> HttpResponse:
     for s in summaries:
         categories.setdefault(s.category, []).append(s)
 
-    return render(request, "dashboard/partials/category_breakdown.html", {
-        "categories": categories,
-        "days": days,
-    })
+    return render(
+        request,
+        "dashboard/partials/category_breakdown.html",
+        {
+            "categories": categories,
+            "days": days,
+        },
+    )
 
 
 def pipeline_runs_view(request: HttpRequest) -> HttpResponse:
@@ -102,9 +124,13 @@ def pipeline_runs_view(request: HttpRequest) -> HttpResponse:
     """
     runs = bq.fetch_recent_pipeline_runs(limit=50)
 
-    return render(request, "dashboard/partials/pipeline_runs.html", {
-        "runs": runs,
-    })
+    return render(
+        request,
+        "dashboard/partials/pipeline_runs.html",
+        {
+            "runs": runs,
+        },
+    )
 
 
 def data_quality_view(request: HttpRequest) -> HttpResponse:
@@ -113,6 +139,10 @@ def data_quality_view(request: HttpRequest) -> HttpResponse:
     """
     metrics = bq.fetch_data_quality_metrics()
 
-    return render(request, "dashboard/partials/data_quality.html", {
-        "metrics": metrics,
-    })
+    return render(
+        request,
+        "dashboard/partials/data_quality.html",
+        {
+            "metrics": metrics,
+        },
+    )

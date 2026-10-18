@@ -1,6 +1,6 @@
 # Pipeline Dashboard
 
-> A Django full-stack dashboard that visualises ETL pipeline data from the [gcp-data-pipeline](https://github.com/koate-kpai/gcp-data-pipeline) project. Server-rendered HTML, HTMX interactivity, Chart.js visualisations, and an AI chat widget powered by Claude.
+> A Django full-stack dashboard that visualises ETL pipeline data from the [gcp-data-pipeline](https://github.com/koatedevopskpai/gcp-data-pipeline) project. Server-rendered HTML, HTMX interactivity, Chart.js visualisations, and an AI chat widget powered by Claude.
 
 ---
 
@@ -58,7 +58,7 @@ All architectural decisions are documented as Architecture Decision Records (ADR
 ## Prerequisites
 
 - Python 3.12+
-- A GCP project with BigQuery dataset from [gcp-data-pipeline](https://github.com/koate-kpai/gcp-data-pipeline)
+- A GCP project with BigQuery dataset from [gcp-data-pipeline](https://github.com/koatedevopskpai/gcp-data-pipeline)
 - *(Optional)* Claude API key for AI chat
 
 ---
@@ -67,7 +67,7 @@ All architectural decisions are documented as Architecture Decision Records (ADR
 
 ```bash
 # 1. Clone and enter the project
-git clone https://github.com/koate-kpai/pipeline-dashboard.git
+git clone https://github.com/koatedevopskpai/pipeline-dashboard.git
 cd pipeline-dashboard
 
 # 2. Create virtual environment
@@ -202,11 +202,18 @@ pipeline-dashboard/
 
 ## Related Projects
 
-- [gcp-data-pipeline](https://github.com/koate-kpai/gcp-data-pipeline) — The GCP-native serverless ETL pipeline that feeds data into this dashboard
-- [data-pipeline-engine](https://github.com/koate-kpai/data-pipeline-engine) — Production ETL pipeline with FastAPI and Streamlit
+- [gcp-data-pipeline](https://github.com/koatedevopskpai/gcp-data-pipeline) — The GCP-native serverless ETL pipeline that feeds data into this dashboard
+- [data-pipeline-engine](https://github.com/koatedevopskpai/data-pipeline-engine) — ETL reference pipeline with FastAPI and Streamlit
 
 ---
 
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+
+## Claim review — 18 October 2026
+
+See [verification and limits](evidence/W5-03.md) for the source revision, claim
+classification and observed CI status. Wording corrections do not establish a
+new deployment, passing test suite or production operation.
