@@ -29,7 +29,13 @@ WORKDIR /app
 # Copy only requirements first — Docker layer caching means this layer
 # is reused unless requirements.txt changes, saving minutes per rebuild
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install into a virtualenv, not `pip install --user`. The `--user` scheme
+# resolves to a path that depends on $HOME, so packages installed as root
+# (/root/.local) are invisible to a process whose HOME differs. A venv on a
+# fixed path is user-independent.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
 
 # === Stage 2: Runtime ===
 FROM python:3.12-slim
@@ -43,9 +49,10 @@ RUN groupadd -r django && useradd -r -g django django
 
 WORKDIR /app
 
-# Copy installed packages from builder stage
-COPY --from=builder /root/.local /home/django/.local
-ENV PATH=/home/django/.local/bin:$PATH
+# Copy the virtualenv from the builder stage (see the note there on why this
+# replaces the previous `pip install --user` scheme)
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code (after deps to optimise caching)
 COPY . .
